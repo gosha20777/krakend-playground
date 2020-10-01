@@ -1,0 +1,200 @@
+{
+  "version": 2,
+  "name": "lacmus gateway",
+  "host": [ "0.0.0.0" ],
+  "port": 8080,
+  "cache_ttl": "3600s",
+  "timeout": "10s",
+  "extra_config": {
+    "github_com/devopsfaith/krakend-gologging": {
+      "level":  "DEBUG",
+      "prefix": "[GATEWAY]",
+      "syslog": false,
+      "stdout": true
+    },
+    "github_com/devopsfaith/krakend-cors": {
+      "allow_origins": [ "http://localhost:8090" ],
+      "allow_methods": [ "POST", "GET", "PUT", "DELETE" ],
+      "max_age": "12h"
+    },
+    "github_com/devopsfaith/krakend-metrics": {
+      "collection_time": "60s",
+      "proxy_disabled": false,
+      "router_disabled": false,
+      "backend_disabled": false,
+      "endpoint_disabled": false,
+      "listen_address": ":8091"
+    }
+  },
+  "endpoints": [   
+		{
+			"endpoint": "/api/v1/auth/token",
+			"method": "POST",
+			"backend": [
+			  {
+				  "host":[ "http://identity:5000" ],
+				  "url_pattern": "/api/v1/token",
+				  "method": "POST"
+			  }
+      ],
+      "extra_config": {
+        "github.com/devopsfaith/krakend-jose/signer": {
+            "alg": "HS256",
+            "kid": "sim2",
+            "keys-to-sign": ["access_token"],
+            "jwk-url": "http://static_data:8080/jwk/symmetric.json",
+            "disable_jwk_security": true
+        }
+      }
+    },
+    {
+			"endpoint": "/api/v1/auth/token",
+			"method": "PUT",
+			"backend": [
+			  {
+				  "host":[ "http://identity:5000" ],
+				  "url_pattern": "/api/v1/token",
+				  "method": "PUT"
+			  }
+      ],
+      "extra_config": {
+        "github.com/devopsfaith/krakend-jose/signer": {
+            "alg": "HS256",
+            "kid": "sim2",
+            "keys-to-sign": ["access_token"],
+            "jwk-url": "http://static_data:8080/jwk/symmetric.json",
+            "disable_jwk_security": true
+        }
+      }
+    },
+    {
+			"endpoint": "/api/v1/privete/key",
+			"backend": [
+			  {
+          "host":[ "http://static_data:8080" ],
+				  "url_pattern": "/jwk/symmetric.json"
+			  }
+      ],
+      "extra_config": {
+        "github.com/devopsfaith/krakend-jose/validator": {
+          "alg": "HS256",
+          "audience": ["https://lacmus.io"],
+          "issuer": "https://lacmus",
+          "roles_key": "roles",
+          "roles": ["admin"],
+          "jwk-url": "http://static_data:8080/jwk/symmetric.json",
+          "disable_jwk_security": true
+        }
+      }
+    },
+    {
+      "endpoint": "/api/v1/debug_api/debug/token",
+      "method": "POST",
+      "output_encoding": "no-op",
+			"backend": [
+			  {
+          "host":[ "http://debug_api:5000" ],
+          "url_pattern": "/api/v1/debug_api/debug",
+          "method": "POST",
+          "encoding": "no-op"
+			  }
+      ],
+      "extra_config": {
+        "github.com/devopsfaith/krakend-jose/validator": {
+          "alg": "HS256",
+          "audience": ["https://lacmus.io"],
+          "issuer": "https://lacmus",
+          "roles_key": "roles",
+          "roles": ["user", "admin"],
+          "jwk-url": "http://static_data:8080/jwk/symmetric.json",
+          "disable_jwk_security": true
+        }
+      }
+    },
+    {
+      "endpoint": "/api/v1/debug_api/debug/base-auth",
+      "method": "POST",
+      "output_encoding": "no-op",
+			"backend": [
+			  {
+          "host":[ "http://debug_api:5000" ],
+          "url_pattern": "/api/v1/debug_api/debug",
+          "method": "POST",
+          "encoding": "no-op"
+			  }
+      ],
+      "extra_config": {
+        "github.com/kpacha/krakend-http-auth": {
+            "pass": "bar",
+            "user": "foo"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/v1/debug_api/debug/cookie-auth",
+      "method": "POST",
+      "headers_to_pass": [
+        "X-User-Id",
+        "X-Session-Id"
+        ],
+      "output_encoding": "no-op",
+			"backend": [
+			  {
+          "host":[ "http://debug_api:5000" ],
+          "url_pattern": "/api/v1/debug_api/debug",
+          "method": "POST",
+          "encoding": "no-op"
+			  }
+      ],
+      "extra_config": {
+        "github.com/gosha20777/krakend-cookie-auth": {
+            "url": "https://ugd.mosreg.ru/swagger/auth/validate",
+            "cookie": "mojo"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/v1/debug_api/debug/lua",
+      "method": "POST",
+      "output_encoding": "no-op",
+			"backend": [
+			  {
+          "host":[ "http://debug_api:5000" ],
+          "url_pattern": "/api/v1/debug_api/debug",
+          "method": "POST",
+          "encoding": "no-op",
+          "extra_config": {
+            "github.com/devopsfaith/krakend-lua/proxy/backend": {
+              "sources": [
+                  "/etc/krakend/example.lua"
+              ],
+              "pre": "make_req(request.load())",
+              "live": true,
+              "allow_open_libs": true
+            }
+          }
+			  }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/debug_api/doc",
+			"backend": [
+			  {
+          "host":[ "http://debug_api:5000" ],
+          "url_pattern": "/redoc",
+          "encoding": "no-op"
+			  }
+      ],
+      "output_encoding": "no-op"
+    },
+    {
+      "endpoint": "/api/v1/debug_api/doc/openapi.json",
+			"backend": [
+			  {
+          "host":[ "http://debug_api:5000" ],
+          "url_pattern": "/api/v1/debug_api/doc/openapi.json"
+			  }
+      ]
+    }
+  ]
+}

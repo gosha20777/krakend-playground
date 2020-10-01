@@ -1,0 +1,3 @@
+[submodule "krakend"]
+	path = krakend
+	url = https://github.com/gosha20777/krakend-cooke
